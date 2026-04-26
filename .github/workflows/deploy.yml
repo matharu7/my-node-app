@@ -12,17 +12,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Deploy to EC2 via SSH
+      # This step sends your files to the EC2 folder
+      - name: Copy files to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "."
+          target: "~/my-node-app"
+
+      # This step runs the app
+      - name: SSH and Restart Server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            cd ~/my-node-app || mkdir ~/my-node-app && cd ~/my-node-app
-            git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git . || git pull origin main
+            cd ~/my-node-app
             npm install
-            sudo pm2 restart all || sudo pm2 start app.js --name "web-app"
+            # Run with sudo since we use port 80
+            sudo pm2 delete "web-app" || true
+            sudo pm2 start app.js --name "web-app"
             sudo pm2 save
